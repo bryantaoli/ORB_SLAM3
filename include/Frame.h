@@ -16,6 +16,10 @@
 * If not, see <http://www.gnu.org/licenses/>.
 */
 
+/**
+ * @file Frame.h
+ * @brief ORB-SLAM2 中，帧的实现
+ */
 
 #ifndef FRAME_H
 #define FRAME_H
@@ -35,36 +39,112 @@
 
 namespace ORB_SLAM3
 {
+
+/**
+ * @name 定义一帧中有多少个图像网格
+ * @{
+ */
+
+/**
+ * @brief 网格的行数
+ * 
+ */
 #define FRAME_GRID_ROWS 48
+
+/**
+ * @brief 网格的列数
+ * 
+ */
 #define FRAME_GRID_COLS 64
 
+/** @} */
 class MapPoint;
 class KeyFrame;
 class ConstraintPoseImu;
 class GeometricCamera;
 class ORBextractor;
 
+/**
+ * @brief 帧
+ */
 class Frame
 {
 public:
+
+    /**
+     * @brief Construct a new Frame object without parameter. 
+     * 
+     */
     Frame();
 
-    // Copy constructor.
+    // Copy constructor. 拷贝构造函数
+    /**
+     * @brief 拷贝构造函数 
+     * @details 复制构造函数, mLastFrame = Frame(mCurrentFrame) \n
+     * 如果不是自定以拷贝函数的话，系统自动生成的拷贝函数对于所有涉及分配内存的操作都将是浅拷贝 \n
+     * @param[in] frame 引用
+     * @note 另外注意，调用这个函数的时候，这个函数中隐藏的this指针其实是指向目标帧的
+     */
     Frame(const Frame &frame);
 
-    // Constructor for stereo cameras.
+    // Constructor for stereo cameras.  为双目相机准备的构造函数
+    /**
+     * @brief 为双目相机准备的构造函数
+     * 
+     * @param[in] imLeft            左目图像
+     * @param[in] imRight           右目图像
+     * @param[in] timeStamp         时间戳
+     * @param[in] extractorLeft     左目图像特征点提取器句柄
+     * @param[in] extractorRight    右目图像特征点提取器句柄
+     * @param[in] voc               ORB字典句柄
+     * @param[in] K                 相机内参矩阵
+     * @param[in] distCoef          相机去畸变参数
+     * @param[in] bf                相机基线长度和焦距的乘积
+     * @param[in] thDepth           远点和近点的深度区分阈值
+     *  
+     */
     Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, GeometricCamera* pCamera,Frame* pPrevF = static_cast<Frame*>(NULL), const IMU::Calib &ImuCalib = IMU::Calib());
 
-    // Constructor for RGB-D cameras.
+    // Constructor for RGB-D cameras.	
+    /**
+     * @brief 为RGBD相机准备的帧构造函数
+     * 
+     * @param[in] imGray        对RGB图像灰度化之后得到的灰度图像
+     * @param[in] imDepth       深度图像
+     * @param[in] timeStamp     时间戳
+     * @param[in] extractor     特征点提取器句柄
+     * @param[in] voc           ORB特征点词典的句柄
+     * @param[in] K             相机的内参数矩阵
+     * @param[in] distCoef      相机的去畸变参数
+     * @param[in] bf            baseline*bf
+     * @param[in] thDepth       远点和近点的深度区分阈值
+     */
     Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, GeometricCamera* pCamera,Frame* pPrevF = static_cast<Frame*>(NULL), const IMU::Calib &ImuCalib = IMU::Calib());
 
-    // Constructor for Monocular cameras.
+    /**
+     * @brief 为单目相机准备的帧构造函数
+     * 
+     * @param[in] imGray                            //灰度图
+     * @param[in] timeStamp                         //时间戳
+     * @param[in & out] extractor                   //ORB特征点提取器的句柄
+     * @param[in] voc                               //ORB字典的句柄
+     * @param[in] K                                 //相机的内参数矩阵
+     * @param[in] distCoef                          //相机的去畸变参数
+     * @param[in] bf                                //baseline*f
+     * @param[in] thDepth                           //区分远近点的深度阈值
+     */
     Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, Frame* pPrevF = static_cast<Frame*>(NULL), const IMU::Calib &ImuCalib = IMU::Calib());
 
     // Destructor
     // ~Frame();
 
     // Extract ORB on the image. 0 for left image and 1 for right image.
+    /**
+     * @brief 提取图像的ORB特征，提取的关键点存放在mvKeys，描述子存放在mDescriptors
+     * 
+     * @param[in] flag          标记是左图还是右图。0：左图  1：右图
+     * @param[in] im            等待提取特征点的图像
+     */
     void ExtractORB(int flag, const cv::Mat &im, const int x0, const int x1);
 
     // Compute Bag of Words representation.

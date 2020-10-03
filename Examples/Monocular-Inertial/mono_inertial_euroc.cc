@@ -31,15 +31,30 @@
 
 using namespace std;
 
+/**
+ * @brief 获取图像文件的信息
+ * @param[in]  strImagePath     图像文件存放路径
+ * @param[in]  strPathTimes     时间戳文件的存放路径
+ * @param[out] vstrImages       图像文件名数组
+ * @param[out] vTimeStamps      时间戳数组
+ */
 void LoadImages(const string &strImagePath, const string &strPathTimes,
                 vector<string> &vstrImages, vector<double> &vTimeStamps);
 
+/**
+ * @brief 获取IMU文件的信息
+ * @param[in]  strImuPath     IMU文件存放路径
+ * @param[in]  vTimeStamps     时间戳数组
+ * @param[out] vAcc       加速度计数组
+ * @param[out] vGyro      陀螺仪数组
+ */
 void LoadIMU(const string &strImuPath, vector<double> &vTimeStamps, vector<cv::Point3f> &vAcc, vector<cv::Point3f> &vGyro);
 
 double ttrack_tot = 0;
 int main(int argc, char *argv[])
 {
 
+    // step 0 检查输入参数个数是否足够
     if(argc < 5)
     {
         cerr << endl << "Usage: ./mono_inertial_euroc path_to_vocabulary path_to_settings path_to_sequence_folder_1 path_to_times_file_1 (path_to_image_folder_2 path_to_times_file_2 ... path_to_image_folder_N path_to_times_file_N) " << endl;
@@ -59,10 +74,13 @@ int main(int argc, char *argv[])
     // Load all sequences:
     int seq;
     vector< vector<string> > vstrImageFilenames;
+    // 时间戳
     vector< vector<double> > vTimestampsCam;
     vector< vector<cv::Point3f> > vAcc, vGyro;
     vector< vector<double> > vTimestampsImu;
+    // 当前图像序列中的图像数目
     vector<int> nImages;
+    // 当前IMU序列中的IMU数目
     vector<int> nImu;
     vector<int> first_imu(num_seq,0);
 
@@ -111,6 +129,8 @@ int main(int argc, char *argv[])
     }
 
     // Vector for tracking time statistics
+    // step 2 运行前准备
+    // 统计追踪一帧耗时 (仅Tracker线程)
     vector<float> vTimesTrack;
     vTimesTrack.resize(tot_images);
 
@@ -121,8 +141,15 @@ int main(int argc, char *argv[])
     cout << "IMU data in the sequence: " << nImu << endl << endl;*/
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_MONOCULAR, true);
+    // step 3 加载VIO系统
+    ORB_SLAM3::System SLAM(
+        argv[1], // path_to_vocabulary
+        argv[2], // path_to_settings
+        ORB_SLAM3::System::IMU_MONOCULAR, // 单目VIO模式
+        true); // 启用可视化查看器
 
+    // Main loop
+    // step 4 依次追踪序列中的每一张图像
     int proccIm=0;
     for (seq = 0; seq<num_seq; seq++)
     {
@@ -134,6 +161,7 @@ int main(int argc, char *argv[])
         for(int ni=0; ni<nImages[seq]; ni++, proccIm++)
         {
             // Read image from file
+            // step 4.1 读根据前面获得的图像文件名读取图像,读取过程中不改变图像的格式 
             im = cv::imread(vstrImageFilenames[seq][ni],CV_LOAD_IMAGE_UNCHANGED);
 
             double tframe = vTimestampsCam[seq][ni];
@@ -146,6 +174,7 @@ int main(int argc, char *argv[])
             }
 
             // Load imu measurements from previous frame
+            // step 4.2 从前一帧图像开始读取imu的测量值
             vImuMeas.clear();
 
             if(ni>0)
@@ -164,6 +193,7 @@ int main(int argc, char *argv[])
             /*cout << "first imu: " << first_imu << endl;
             cout << "first imu time: " << fixed << vTimestampsImu[first_imu] << endl;
             cout << "size vImu: " << vImuMeas.size() << endl;*/
+            // step 4.3 开始计时
     #ifdef COMPILEDWITHC11
             std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
     #else
@@ -172,8 +202,9 @@ int main(int argc, char *argv[])
 
             // Pass the image to the SLAM system
             // cout << "tframe = " << tframe << endl;
+            // step 4.4 追踪当前图像
             SLAM.TrackMonocular(im,tframe,vImuMeas); // TODO change to monocular_inertial
-
+            // step 4.5 追踪完成,停止当前帧的图像计时, 并计算追踪耗时
     #ifdef COMPILEDWITHC11
             std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
     #else
@@ -187,6 +218,8 @@ int main(int argc, char *argv[])
             vTimesTrack[ni]=ttrack;
 
             // Wait to load the next frame
+            // step 4.6 根据图像时间戳中记录的两张图像之间的时间和现在追踪当前图像所耗费的时间,继续等待指定的时间以使得下一张图像能够
+            // 按照时间戳被送入到SLAM系统中进行跟踪
             double T=0;
             if(ni<nImages[seq]-1)
                 T = vTimestampsCam[seq][ni+1]-tframe;
@@ -205,9 +238,11 @@ int main(int argc, char *argv[])
     }
 
     // Stop all threads
+    //step 5 如果所有的图像都预测完了,那么终止当前的VIO系统
     SLAM.Shutdown();
 
     // Save camera trajectory
+    //step 6 保存轨迹
     if (bFileName)
     {
         const string kf_file =  "kf_" + string(argv[argc-1]) + ".txt";
@@ -227,21 +262,26 @@ int main(int argc, char *argv[])
 void LoadImages(const string &strImagePath, const string &strPathTimes,
                 vector<string> &vstrImages, vector<double> &vTimeStamps)
 {
+    // 打开文件
     ifstream fTimes;
     fTimes.open(strPathTimes.c_str());
     vTimeStamps.reserve(5000);
     vstrImages.reserve(5000);
+    // 遍历文件
     while(!fTimes.eof())
     {
         string s;
         getline(fTimes,s);
+        // 只有在当前行不为空的时候执行
         if(!s.empty())
         {
             stringstream ss;
             ss << s;
+            // 生成当前行所指出的RGB图像的文件名称
             vstrImages.push_back(strImagePath + "/" + ss.str() + ".png");
             double t;
             ss >> t;
+            // 记录该图像的时间戳
             vTimeStamps.push_back(t/1e9);
 
         }
@@ -250,19 +290,20 @@ void LoadImages(const string &strImagePath, const string &strPathTimes,
 
 void LoadIMU(const string &strImuPath, vector<double> &vTimeStamps, vector<cv::Point3f> &vAcc, vector<cv::Point3f> &vGyro)
 {
+    // 打开文件
     ifstream fImu;
     fImu.open(strImuPath.c_str());
     vTimeStamps.reserve(5000);
     vAcc.reserve(5000);
     vGyro.reserve(5000);
-
+    // 遍历文件
     while(!fImu.eof())
     {
         string s;
         getline(fImu,s);
         if (s[0] == '#')
             continue;
-
+        // 只有在当前行不为空的时候执行
         if(!s.empty())
         {
             string item;
@@ -276,7 +317,7 @@ void LoadIMU(const string &strImuPath, vector<double> &vTimeStamps, vector<cv::P
             }
             item = s.substr(0, pos);
             data[6] = stod(item);
-
+            // 记录该IMU的时间戳
             vTimeStamps.push_back(data[0]/1e9);
             vAcc.push_back(cv::Point3f(data[4],data[5],data[6]));
             vGyro.push_back(cv::Point3f(data[1],data[2],data[3]));

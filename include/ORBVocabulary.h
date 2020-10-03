@@ -1,4 +1,10 @@
 /**
+ * @file ORBVocabulary.h
+ * @brief 词袋模型相关
+ * 
+ */
+
+/**
 * This file is part of ORB-SLAM3
 *
 * Copyright (C) 2017-2020 Carlos Campos, Richard Elvira, Juan J. Gómez Rodríguez, José M.M. Montiel and Juan D. Tardós, University of Zaragoza.
@@ -25,7 +31,7 @@
 
 namespace ORB_SLAM3
 {
-
+// 只是增加了一个自定义的数据类型罢了
 typedef DBoW2::TemplatedVocabulary<DBoW2::FORB::TDescriptor, DBoW2::FORB>
   ORBVocabulary;
 
