@@ -1,0 +1,1 @@
+./Examples/Monocular-Inertial/mono_inertial_euroc ./Vocabulary/ORBvoc.txt ./Examples/Monocular-Inertial/airsim.yaml /home/msp/Downloads/Dataset/traj1 ./Examples/Monocular-Inertial/EuRoC_TimeStamps/traj1.txt traj1_monoi

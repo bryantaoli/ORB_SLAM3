@@ -536,8 +536,8 @@ void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2)
 void Sim3Solver::CheckInliers()
 {
     vector<cv::Mat> vP1im2, vP2im1;
-    Project(mvX3Dc2,vP2im1,mT12i,mK1);// 把2系中的3D经过Sim3变换(mT12i)到1系中计算重投影坐标
-    Project(mvX3Dc1,vP1im2,mT21i,mK2);// 把1系中的3D经过Sim3变换(mT21i)到2系中计算重投影坐标
+    Project(mvX3Dc2,vP2im1,mT12i,pCamera1);// 把2系中的3D经过Sim3变换(mT12i)到1系中计算重投影坐标
+    Project(mvX3Dc1,vP1im2,mT21i,pCamera2);// 把1系中的3D经过Sim3变换(mT21i)到2系中计算重投影坐标
 
     mnInliersi=0;
     // 对于两帧的每一个匹配点
